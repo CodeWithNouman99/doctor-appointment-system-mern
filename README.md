@@ -68,7 +68,3 @@ CLOUDINARY_SECRET_KEY=your_api_secret
 |---|---|---|
 | POST | `/api/admin/login` | Admin login, returns a JWT |
 | POST | `/api/admin/add-doctor` | Add a doctor (admin token + image upload) |
-
-## Author
-
-**Nouman** · [GitHub](https://github.com/CodeWithNouman99)

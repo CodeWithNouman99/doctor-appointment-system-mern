@@ -54,4 +54,53 @@ const registerUser = async (req, res) => {
   }
 };
 
-export { registerUser };
+// API to login a user
+const loginUser = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    // Checking that both fields are sent
+    if (!email || !password) {
+      return res.json({ success: false, message: "Email and password are required" });
+    }
+
+    // Finding the user. Password has select:false in the model,
+    // so we ask for it with "+password" to be able to compare it
+    const user = await userModel.findOne({ email }).select("+password");
+    if (!user) {
+      return res.json({ success: false, message: "User does not exist" });
+    }
+
+    // Comparing the typed password with the hashed password in the database
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.json({ success: false, message: "Invalid credentials" });
+    }
+
+    // Password is correct, so we send a token
+    const token = createToken(user._id);
+    res.json({ success: true, token });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+// API to get the logged-in user's profile
+const getProfile = async (req, res) => {
+  try {
+    // req.userId was added by the authUser middleware
+    // Password is hidden automatically because of select:false in the model
+    const userData = await userModel.findById(req.userId).select("-__v");
+    if (!userData) {
+      return res.json({ success: false, message: "User not found" });
+    }
+
+    res.json({ success: true, userData });
+  } catch (error) {
+    console.log(error);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+export { registerUser, loginUser, getProfile };

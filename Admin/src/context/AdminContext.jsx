@@ -30,7 +30,7 @@ const AdminContextProvider = (props) => {
       )
       if (data.success) {
         toast.success(data.message)
-        getAllDoctors()
+        await getAllDoctors()
       } else {
         toast.error(data.message)
       }

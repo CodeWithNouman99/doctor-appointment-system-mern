@@ -81,11 +81,9 @@ const addDoctor = async (req, res) => {
 const loginAdmin = async (req, res) => {
   try {
     const { email, password } = req.body;
-    if (
-      email === process.env.ADMIN_EMAIL &&
-      password === process.env.ADMIN_PASSWORD
-    ) {
-      const token = jwt.sign(email + password, process.env.JWT_SECRET);
+
+    if (email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+      const token = jwt.sign({ email, role: "admin" }, process.env.JWT_SECRET, { expiresIn: "1d" });
       res.json({ success: true, token });
     } else {
       res.json({ success: false, message: "Invalid credentials" });
@@ -95,4 +93,34 @@ const loginAdmin = async (req, res) => {
     res.json({ success: false, message: error.message });
   }
 };
-export { addDoctor, loginAdmin };
+
+
+
+// APi to get all doctors list for Admin panel
+const allDoctors = async (req, res) => {
+  try {
+    const doctors = await doctorModel.find().select("-password -__v").lean();
+    res.status(200).json({ success: true, doctors });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+
+const changeAvailability = async (req, res) => {
+  try {
+    const { docId } = req.body;
+    const doc = await doctorModel.findById(docId);
+    if (!doc) return res.status(404).json({ success: false, message: "Doctor not found" });
+    await doctorModel.findByIdAndUpdate(docId, { available: !doc.available });
+    res.json({ success: true, message: "Availability changed" });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+
+
+export { addDoctor, loginAdmin,allDoctors,changeAvailability };

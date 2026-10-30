@@ -26,13 +26,6 @@ A MERN stack web app to browse doctors by speciality and book appointments.
 - [ ] Book and cancel appointments
 - [ ] Doctor and Admin panels
 
-## Run Locally
-
-```bash
-git clone https://github.com/CodeWithNouman99/doctor-appointment-system-MERN-.git
-cd doctor-appointment-system-MERN-
-```
-
 **Frontend**
 
 ```bash

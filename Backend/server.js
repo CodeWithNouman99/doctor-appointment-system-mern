@@ -5,6 +5,7 @@ import connectDb from "./config/db.js"
 import connectCloudinary from "./config/cloudinary.js"
 import adminRouter from "./routes/adminRoute.js"
 import userRouter from "./routes/userRoute.js"
+import doctorRouter from "./routes/doctorRoute.js"
 
 
 // App config
@@ -23,6 +24,7 @@ app.use("/api/admin",adminRouter)
 //localhost:4000/api/admin/add-doctor
 app.use("/api/user",userRouter)
 //localhost:4000/api/user/register
+app.use("api/doctor",doctorRouter)
 
 
 app.get("/",(req,res)=>

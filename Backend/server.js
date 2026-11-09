@@ -4,12 +4,14 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/DB.js";
 import connectCloudinary from "./config/Cloudinary.js";
-
+import adminRouter from "./routes/adminRouter.js";
 dotenv.config();
 
 const app = express();
 connectDB();
 connectCloudinary()
+
+
 // Middlewares
 app.use(express.json());
 app.use(cors());
@@ -18,6 +20,13 @@ app.use(cors());
 app.get("/", (req, res) => {
   res.send("Doctor Appointment API is running!");
 });
+
+
+// Api endpoints
+app.use("/api/admin", adminRouter);
+
+
+
 
 // Server
 const PORT = process.env.PORT || 4000;

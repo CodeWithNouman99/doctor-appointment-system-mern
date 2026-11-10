@@ -72,10 +72,62 @@ const loginUser = async (req, res) => {
 
     res.status(200).json({ message: "Login successful", token });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error logging in", error: error.message });
+    res.status(500).json({ message: "Error logging in", error: error.message });
   }
 };
 
-export { registerUser, loginUser };
+// Api to get user profile
+const getUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.body; // Assuming you have middleware to authenticate and set req.user
+    const user = await userModel.findById(userId).select("-password"); // Exclude password from the response
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res
+      .status(200)
+      .json({ message: "User profile retrieved successfully", user });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error retrieving user profile", error: error.message });
+  }
+};
+
+// Api to update user profile
+const updateUserProfile = async (req, res) => {
+  try {
+    const { userId } = req.body; // Assuming you have middleware to authenticate and set req.user
+    const { name, email, password } = req.body;
+    const image = req.file ? req.file.path : undefined; // Assuming you're using multer for file uploads
+
+    const user = await userModel.findById(userId);
+    if (!name && !email && !password && !image) {
+      return res
+        .status(400)
+        .json({ message: "At least one field is required to update" });
+    }
+    await userModel.findByIdAndUpdate(userId, { name, email, password, image }, { new: true });
+    
+    // Update user fields if provided
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      user.password = hashedPassword;
+    }
+    if (image) user.image = image;
+
+    await user.save();
+    res
+      .status(200)
+      .json({ message: "User profile updated successfully", user });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error updating user profile", error: error.message });
+  }
+};
+
+export { registerUser, loginUser, getUserProfile, updateUserProfile };

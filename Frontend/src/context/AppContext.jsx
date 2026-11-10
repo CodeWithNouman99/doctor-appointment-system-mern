@@ -7,13 +7,13 @@ const AppContextProvider=(props)=>
 {
     const backendUrl=import.meta.env.VITE_BACKEND_URL
     const [doctor,setDoctor]=useState([])
-    const value={
-        doctors
-    }
+    const [token,setToken]=useState([])
+
+    
     const getdoctorsData=async()=>
     {
         try{
-            const {data}=await axios.get(backendUrl+"/api/doctor/list")
+            const { data } = await axios.get(backendUrl + "/api/doctor/doctorList");
             if(data.success)
             {
                 setDoctor(data.doctor)
@@ -27,13 +27,20 @@ const AppContextProvider=(props)=>
     {
         getdoctorsData()
     })
-    return(
-        <AppContext.Provider value={value}>
-            {
-                props.children
-            }
-        </AppContext.Provider>
-    )
+
+
+   const value = {
+  doctors,
+  backendUrl,   
+  token,
+  setToken,
+};
+
+return (
+  <AppContext.Provider value={value}>
+    {props.children}
+  </AppContext.Provider>
+);
 }
 
 

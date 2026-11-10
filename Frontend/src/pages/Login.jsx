@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useContext, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { AppContext } from "../context/AppContext";
+import axios from "axios";
+import toast from "react-hot-toast";
 
 const initialForm = {
   name: "",
@@ -43,8 +47,17 @@ const Login = () => {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const { backendUrl, token, setToken } = useContext(AppContext);
+  const navigate = useNavigate();
 
   const isSignUp = mode === "Sign Up";
+
+  // Already logged in (or just logged in) -> go to home
+  useEffect(() => {
+    if (token) navigate("/");
+  }, [token, navigate]);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -53,29 +66,69 @@ const Login = () => {
 
   const toggleMode = () => {
     setMode(isSignUp ? "Login" : "Sign Up");
+    setForm(initialForm);
     setErrors({});
+    setShowPassword(false);
   };
 
   const validate = () => {
     const newErrors = {};
     if (isSignUp && !form.name.trim()) newErrors.name = "Full name is required";
-    if (!/^\S+@\S+\.\S+$/.test(form.email)) newErrors.email = "Enter a valid email";
-    if (form.password.length < 8)
-      newErrors.password = "Password must be at least 8 characters";
+    if (!/^\S+@\S+\.\S+$/.test(form.email))
+      newErrors.email = "Enter a valid email";
+
+    if (isSignUp) {
+      if (form.password.length < 8)
+        newErrors.password = "Password must be at least 8 characters";
+    } else if (!form.password) {
+      newErrors.password = "Password is required";
+    }
     return newErrors;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // 1. Validate first
     const newErrors = validate();
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
-    console.log(isSignUp ? "Sign up data:" : "Login data:", form);
-    // TODO: send form data to the backend authentication API here
+    // 2. Then call the API
+    setLoading(true);
+    try {
+      const endpoint = isSignUp ? "/api/user/register" : "/api/user/login";
+      const payload = isSignUp
+        ? { name: form.name.trim(), email: form.email, password: form.password }
+        : { email: form.email, password: form.password };
+
+      const { data } = await axios.post(backendUrl + endpoint, payload);
+
+      if (data.success) {
+        localStorage.setItem("token", data.token);
+        setToken(data.token);
+        setForm(initialForm);
+        setShowPassword(false);
+        toast.success(isSignUp ? "Account created!" : "Logged in!");
+      }
+    } catch (err) {
+      console.log("URL:", err.config?.url, "Response:", err.response?.data);
+      toast.error(
+        err.response?.data?.message ||
+          "Something went wrong. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    if (token) {
+      navigate("/");
+    }
+  }, [token, navigate]);
 
   const inputClass = (field) =>
     `w-full border rounded-lg px-4 py-3 text-sm outline-none transition-all focus:border-[#5F6FFF] focus:ring-2 focus:ring-indigo-100 ${
@@ -94,10 +147,16 @@ const Login = () => {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
+        <form
+          onSubmit={handleSubmit}
+          noValidate
+          className="flex flex-col gap-5"
+        >
           {isSignUp && (
             <div>
-              <label className="text-sm font-medium text-gray-700">Full Name</label>
+              <label className="text-sm font-medium text-gray-700">
+                Full Name
+              </label>
               <input
                 name="name"
                 value={form.name}
@@ -112,7 +171,9 @@ const Login = () => {
           )}
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Email Address</label>
+            <label className="text-sm font-medium text-gray-700">
+              Email Address
+            </label>
             <input
               name="email"
               type="email"
@@ -127,7 +188,9 @@ const Login = () => {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-gray-700">Password</label>
+            <label className="text-sm font-medium text-gray-700">
+              Password
+            </label>
             <div className="relative mt-1.5">
               <input
                 name="password"
@@ -153,9 +216,10 @@ const Login = () => {
 
           <button
             type="submit"
-            className="w-full bg-[#5F6FFF] text-white text-sm font-medium py-3 rounded-full hover:bg-[#4B5BE6] active:scale-95 transition-all duration-300"
+            disabled={loading}
+            className="w-full bg-[#5F6FFF] text-white text-sm font-medium py-3 rounded-full hover:bg-[#4B5BE6] active:scale-95 transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {isSignUp ? "Create Account" : "Login"}
+            {loading ? "Please wait..." : isSignUp ? "Create Account" : "Login"}
           </button>
         </form>
 

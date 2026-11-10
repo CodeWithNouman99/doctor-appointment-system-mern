@@ -1,21 +1,31 @@
-import React, { useState } from 'react'
+import React, { useState, useContext } from 'react'
 import { assets } from "../assets/assets_frontend/assets"
 import { NavLink, useNavigate } from "react-router-dom"
+import { AppContext } from "../context/AppContext"
 
 const Navbar = () => {
 
-  const navigate=useNavigate()
+  const navigate = useNavigate()
 
-  const [showMenu,setshowMenu]=useState(false)
-  const [showProfileMenu,setShowProfileMenu]=useState(false)
-  const [token,setToken]=useState(true)
+  const [showMenu, setShowMenu] = useState(false)
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
+
+  const { token, setToken } = useContext(AppContext)
+
+  const logout = () => {
+    setToken(false)
+    localStorage.removeItem("token")
+    setShowProfileMenu(false)
+    setShowMenu(false)
+    navigate("/")
+  }
 
   const navLinkClass = ({ isActive }) =>
     `py-1 ${isActive ? 'text-[#5F6FFF]' : ''}`
 
   return (
     <div className='relative flex items-center justify-between text-sm py-4 mb-5 border-b border-b-gray-400'>
-      <img onClick={()=>navigate("/")} src={assets.logo} alt="Logo" className='w-36 sm:w-44 cursor-pointer' />
+      <img onClick={() => navigate("/")} src={assets.logo} alt="Logo" className='w-36 sm:w-44 cursor-pointer' />
 
       <ul className='hidden md:flex items-start gap-5 font-medium'>
         <NavLink to="/" end className={navLinkClass}>
@@ -64,7 +74,7 @@ const Navbar = () => {
                     My Appointments
                   </p>
                   <p
-                    onClick={() => { setShowProfileMenu(false); setToken(false); navigate('/') }}
+                    onClick={logout}
                     className='hover:text-black cursor-pointer'
                   >
                     Log Out
@@ -83,7 +93,7 @@ const Navbar = () => {
         )}
 
         <img
-          onClick={() => setshowMenu(true)}
+          onClick={() => setShowMenu(true)}
           className='w-6 md:hidden cursor-pointer'
           src={assets.menu_icon}
           alt="Menu"
@@ -99,7 +109,7 @@ const Navbar = () => {
         <div className='flex items-center justify-between px-5 py-5 border-b border-gray-200'>
           <img src={assets.logo} alt="Logo" className='w-36' />
           <img
-            onClick={() => setshowMenu(false)}
+            onClick={() => setShowMenu(false)}
             src={assets.cross_icon}
             alt="Close"
             className='w-6 cursor-pointer'
@@ -107,21 +117,37 @@ const Navbar = () => {
         </div>
 
         <ul className='flex flex-col items-center gap-2 mt-8 px-5 text-lg font-medium'>
-          <NavLink onClick={() => setshowMenu(false)} to="/" end className={navLinkClass}>
+          <NavLink onClick={() => setShowMenu(false)} to="/" end className={navLinkClass}>
             <li className='px-4 py-2 rounded-full inline-block'>HOME</li>
           </NavLink>
-          <NavLink onClick={() => setshowMenu(false)} to="/doctors" className={navLinkClass}>
+          <NavLink onClick={() => setShowMenu(false)} to="/doctors" className={navLinkClass}>
             <li className='px-4 py-2 rounded-full inline-block'>ALL DOCTORS</li>
           </NavLink>
-          <NavLink onClick={() => setshowMenu(false)} to="/about" className={navLinkClass}>
+          <NavLink onClick={() => setShowMenu(false)} to="/about" className={navLinkClass}>
             <li className='px-4 py-2 rounded-full inline-block'>ABOUT</li>
           </NavLink>
-          <NavLink onClick={() => setshowMenu(false)} to="/contact" className={navLinkClass}>
+          <NavLink onClick={() => setShowMenu(false)} to="/contact" className={navLinkClass}>
             <li className='px-4 py-2 rounded-full inline-block'>CONTACT</li>
           </NavLink>
-          {!token && (
+
+          {token ? (
+            <>
+              <NavLink onClick={() => setShowMenu(false)} to="/my-profile" className={navLinkClass}>
+                <li className='px-4 py-2 rounded-full inline-block'>MY PROFILE</li>
+              </NavLink>
+              <NavLink onClick={() => setShowMenu(false)} to="/my-appointments" className={navLinkClass}>
+                <li className='px-4 py-2 rounded-full inline-block'>MY APPOINTMENTS</li>
+              </NavLink>
+              <button
+                onClick={logout}
+                className='mt-4 border border-[#5F6FFF] text-[#5F6FFF] px-8 py-3 rounded-full font-light active:scale-95 transition-all duration-300'
+              >
+                Log Out
+              </button>
+            </>
+          ) : (
             <button
-              onClick={() => { setshowMenu(false); navigate('/login') }}
+              onClick={() => { setShowMenu(false); navigate('/login') }}
               className='mt-4 bg-[#5F6FFF] text-white px-8 py-3 rounded-full font-light active:scale-95 transition-all duration-300'
             >
               Create Account

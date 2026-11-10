@@ -1,6 +1,7 @@
 import validator from "validator";
 import cloudinary from "../config/cloudinary.js";
 import doctorModel from "../models/doctorModel.js";
+import jwt from "jsonwebtoken";
 const addDoctor = async (req, res) => {
   try {
     const {
@@ -92,4 +93,51 @@ const addDoctor = async (req, res) => {
   }
 };
 
-export { addDoctor };
+// Authentication system start here
+// Api for admin login
+
+const adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body; 
+    if(email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD){
+     const token = jwt.sign({ email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD }, process.env.JWT_SECRET, { expiresIn: "1d" });
+
+      res.json({
+        success: true,
+        message: "Admin login successful",
+        token
+      });
+    } else {
+      res.json({
+        success: false,
+        message: "Invalid email or password",
+      });
+    }
+  }catch (error) {
+    res.json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+// Api to get all doctors
+const getAllDoctors = async (req, res) => {
+  try {
+    const doctors = await doctorModel.find({}).select("-password");     
+    res.json({
+      success: true,
+      doctors,
+    });
+    console.log("Database:", mongoose.connection.name);
+console.log("Doctors:", doctors.length);
+  } catch (error) {
+    res.json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+export { addDoctor, adminLogin, getAllDoctors };

@@ -5,8 +5,11 @@ import dotenv from "dotenv";
 import connectDB from "./config/DB.js";
 import connectCloudinary from "./config/Cloudinary.js";
 import adminRouter from "./routes/adminRouter.js";
-dotenv.config();
+import doctorRouter from "./routes/doctorRouter.js";
+import userRouter from "./routes/userRouter.js";
 
+
+dotenv.config();
 const app = express();
 connectDB();
 connectCloudinary()
@@ -22,9 +25,11 @@ app.get("/", (req, res) => {
 });
 
 
+
 // Api endpoints
 app.use("/api/admin", adminRouter);
-
+app.use("/api/doctor", doctorRouter);
+app.use("/api/user", userRouter);
 
 
 

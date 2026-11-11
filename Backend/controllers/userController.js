@@ -2,7 +2,8 @@ import validator from "validator";
 import bcrypt from "bcrypt";
 import userModel from "../models/userModel.js";
 import jwt from "jsonwebtoken";
-
+import { v2 as cloudinary } from "cloudinary";
+import doctorModel from "../models/doctorModel.js"
 // Api to register User
 const registerUser = async (req, res) => {
   try {
@@ -96,38 +97,98 @@ const getUserProfile = async (req, res) => {
 };
 
 // Api to update user profile
-const updateUserProfile = async (req, res) => {
+const updateProfile = async (req, res) => {
   try {
-    const { userId } = req.body; // Assuming you have middleware to authenticate and set req.user
-    const { name, email, password } = req.body;
-    const image = req.file ? req.file.path : undefined; // Assuming you're using multer for file uploads
-
-    const user = await userModel.findById(userId);
-    if (!name && !email && !password && !image) {
-      return res
-        .status(400)
-        .json({ message: "At least one field is required to update" });
+    const { userId, name, phone, address, dob, gender } = req.body;
+    const imageFile = req.file;
+    if (!name || !phone || !dob || !gender) {
+      return res.json({
+        success: false,
+        message: "Data missing!",
+      });
     }
-    await userModel.findByIdAndUpdate(userId, { name, email, password, image }, { new: true });
-    
-    // Update user fields if provided
-    if (name) user.name = name;
-    if (email) user.email = email;
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      user.password = hashedPassword;
+    await userModel.findByIdAndUpdate(userId, {
+      name: name,
+      phone: phone,
+      address: address,
+      dob: dob,
+      gender: gender,
+    });
+    if (imageFile) {
+      //upload image to cloudinary
+      const imageupload = await cloudinary.uploader.upload(imageFile.path, {
+        folder: "profile",
+      });
+      await userModel.findByIdAndUpdate(userId, {
+        profile: imageupload.secure_url,
+      });
     }
-    if (image) user.image = image;
-
-    await user.save();
-    res
-      .status(200)
-      .json({ message: "User profile updated successfully", user });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating user profile", error: error.message });
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+    });
+  } catch (err) {
+    console.log(err);
+    res.json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 
-export { registerUser, loginUser, getUserProfile, updateUserProfile };
+
+//Api to book appointment
+const bookAppointment=async(req,res)=>
+{
+  try{
+    const {userId,docId,slotDate,slotTime}=req.body
+    const docData=await doctorModel.findById(docId).select("-password")
+    if(!docData.available)
+    {
+      return res.josn({success:false,message:"Doctor not available"})
+    }
+    let slotsBooked=docData.slots_Booked
+
+    //checking for slot availability
+    if(slotsBooked[slotDate])
+    {
+      if(slotsBooked[slotDate].includes(slotTime)){
+        return res.josn({success:false,message:"Slot not available"})
+      }else
+    {
+      slotsBooked[slotDate].push(slotTime)
+    }
+    }else
+    {
+      slotsBooked[slotDate]=[]
+      slotsBooked[slotDate].push(slotTime)
+    }
+
+    const userData=await userModel.findById(userId).select("-password")
+    delete docData.slotsBooked
+
+    const appointmentData={
+      userId,
+      docId,
+      userData,
+      docData,
+      amount:docData.fees,
+      slotTime,
+      slotDate,
+      date:Date.now()
+
+    }
+
+    const newAppointment=new appointmentModel(appointmentData)
+    await newAppointment.save()
+
+    //save new slots data in docData
+    await doctorModel.findByIdAndUpdate(docId,{slotsBooked:slotsBooked})
+    res.json({success:true,message:"Appointment booked successfully"})
+
+
+  }catch (err) {
+    console.log(err);
+}
+}
+export { registerUser, loginUser, getUserProfile, updateProfile,bookAppointment }

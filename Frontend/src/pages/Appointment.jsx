@@ -1,11 +1,17 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { doctors, assets } from "../assets/assets_frontend/assets";
 import RelatedDoctors from "../components/Relateddoctor";
+import { AppContext } from "../context/AppContext";
+
 const daysOfWeek = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 const currency = "$";
 
 const Appointment = () => {
+  // Hooks must live INSIDE the component
+  const { backendUrl, token, getDoctorsData } = useContext(AppContext);
   const { docId } = useParams();
   const navigate = useNavigate();
 
@@ -61,23 +67,43 @@ const Appointment = () => {
     setSlotTime("");
   }, [docInfo]);
 
-  const handleBooking = () => {
-    if (!slotTime) {
-      alert("Please select a time slot");
-      return;
+  // Single booking function (replaces bookAppointment + handleBooking)
+  const bookAppointment = async () => {
+    if (!token) {
+      toast.error("Please login to book appointment");
+      return navigate("/login");
     }
-    const date = docSlots[slotIndex][0].datetime.toDateString();
-    alert(`Appointment booked with ${docInfo.name} on ${date} at ${slotTime}`);
-    // Later: send this to the backend API
+
+    if (!slotTime) {
+      return toast.error("Please select a time slot");
+    }
+
+    try {
+      const date = docSlots[slotIndex][0].datetime;
+      const slotDate = `${date.getDate()}_${date.getMonth() + 1}_${date.getFullYear()}`;
+
+      const { data } = await axios.post(
+        `${backendUrl}/api/user/book-appointment`,
+        { docId, slotDate, slotTime },
+        { headers: { token } },
+      );
+
+      if (data.success) {
+        toast.success(data.message);
+        getDoctorsData();
+        navigate("/my-appointments");
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error(error.response?.data?.message || error.message);
+    }
   };
 
   if (!docInfo) {
     return <p className="text-center text-gray-500 py-20">Doctor not found.</p>;
   }
-
-  const relatedDoctors = doctors.filter(
-    (doc) => doc.speciality === docInfo.speciality && doc._id !== docInfo._id,
-  );
 
   return (
     <div>
@@ -168,7 +194,7 @@ const Appointment = () => {
         </div>
 
         <button
-          onClick={handleBooking}
+          onClick={bookAppointment}
           className="bg-[#5F6FFF] text-white text-sm font-light px-14 py-3 rounded-full my-6 hover:bg-[#4B5BE6] active:scale-95 transition-all"
         >
           Book an appointment

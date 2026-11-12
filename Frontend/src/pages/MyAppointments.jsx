@@ -1,57 +1,34 @@
-import React, { useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
 import { doctors, assets } from "../assets/assets_frontend/assets";
+import { AppContext } from "../context/AppContext";
 
 const currency = "$";
 
-const addDays = (days) => {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date;
+// "12_11_2026" -> Date
+const parseSlotDate = (slotDate) => {
+  if (!slotDate) return null;
+  const [day, month, year] = slotDate.split("_").map(Number);
+  return new Date(year, month - 1, day);
 };
 
-const initialAppointments = [
-  {
-    id: 1,
-    docId: "doc1",
-    date: addDays(2),
-    time: "10:30 AM",
-    status: "upcoming",
-    payment: false,
-  },
-  {
-    id: 2,
-    docId: "doc3",
-    date: addDays(5),
-    time: "01:00 PM",
-    status: "upcoming",
-    payment: true,
-  },
-  {
-    id: 3,
-    docId: "doc5",
-    date: addDays(-6),
-    time: "11:00 AM",
-    status: "completed",
-    payment: true,
-  },
-  {
-    id: 4,
-    docId: "doc7",
-    date: addDays(-2),
-    time: "04:30 PM",
-    status: "cancelled",
-    payment: false,
-  },
-];
-
 const formatDate = (date) =>
-  date.toLocaleDateString("en-US", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  date
+    ? date.toLocaleDateString("en-US", {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : "";
+
+const getStatus = (item) => {
+  if (item.cancelled) return "cancelled";
+  if (item.isCompleted) return "completed";
+  return "upcoming";
+};
 
 const statusStyle = {
   upcoming: "text-[#5F6FFF] bg-indigo-50",
@@ -66,40 +43,77 @@ const statusLabel = {
 };
 
 const MyAppointments = () => {
+  // Hooks must live INSIDE the component
+  const { backendUrl, token, getDoctorsData } = useContext(AppContext);
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState(initialAppointments);
+  const [appointments, setAppointments] = useState([]);
+
+  const getAppointments = async () => {
+    try {
+      const { data } = await axios.get(`${backendUrl}/api/user/appointments`, {
+        headers: { token },
+      });
+
+      if (data.success) {
+        setAppointments([...data.appointments].reverse());
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error(error.response?.data?.message || error.message);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      getAppointments();
+    } else {
+      navigate("/login");
+    }
+  }, [token]);
 
   const handlePay = (id) => {
-    setAppointments((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, payment: true } : item)),
-    );
     console.log("Pay online for appointment:", id);
     // TODO: integrate Stripe / Razorpay payment API here
   };
 
-  const handleCancel = (id) => {
-    setAppointments((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: "cancelled" } : item,
-      ),
-    );
-    console.log("Cancel appointment:", id);
-    // TODO: send cancellation request to the backend API here
+  const handleCancel = async (id) => {
+    if (!window.confirm("Cancel this appointment?")) return;
+
+    try {
+      const { data } = await axios.post(
+        `${backendUrl}/api/user/cancel-appointment`,
+        { appointmentId: id },
+        { headers: { token } },
+      );
+
+      if (data.success) {
+        toast.success(data.message);
+        getAppointments();
+        getDoctorsData?.();
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      toast.error(error.response?.data?.message || error.message);
+    }
   };
 
   const stats = [
     { label: "Total", value: appointments.length },
     {
       label: "Upcoming",
-      value: appointments.filter((a) => a.status === "upcoming").length,
+      value: appointments.filter((a) => getStatus(a) === "upcoming").length,
     },
     {
       label: "Completed",
-      value: appointments.filter((a) => a.status === "completed").length,
+      value: appointments.filter((a) => getStatus(a) === "completed").length,
     },
     {
       label: "Cancelled",
-      value: appointments.filter((a) => a.status === "cancelled").length,
+      value: appointments.filter((a) => getStatus(a) === "cancelled").length,
     },
   ];
 
@@ -145,13 +159,17 @@ const MyAppointments = () => {
       ) : (
         <div className="flex flex-col gap-4">
           {appointments.map((item) => {
-            const doc = doctors.find((d) => d._id === item.docId);
+            // Backend sends docData; fall back to static data
+            const doc =
+              item.docData || doctors.find((d) => d._id === item.docId);
             if (!doc) return null;
-            const isUpcoming = item.status === "upcoming";
+
+            const status = getStatus(item);
+            const isUpcoming = status === "upcoming";
 
             return (
               <div
-                key={item.id}
+                key={item._id}
                 className="border border-gray-200 rounded-2xl shadow-sm p-5 sm:p-6 flex flex-col sm:flex-row gap-5 hover:border-[#5F6FFF] transition-all duration-300"
               >
                 <img
@@ -167,25 +185,28 @@ const MyAppointments = () => {
                         {doc.name}
                       </p>
                       <span
-                        className={`text-xs font-semibold px-3 py-1 rounded-full ${statusStyle[item.status]}`}
+                        className={`text-xs font-semibold px-3 py-1 rounded-full ${statusStyle[status]}`}
                       >
-                        {statusLabel[item.status]}
+                        {statusLabel[status]}
                       </span>
                     </div>
                     <p className="text-sm text-gray-500 mt-1">
                       {doc.degree} - {doc.speciality}
                     </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      {doc.address.line1}, {doc.address.line2}
-                    </p>
+                    {doc.address && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        {doc.address.line1}, {doc.address.line2}
+                      </p>
+                    )}
                     <p className="text-sm text-gray-700 font-medium mt-2">
-                      {formatDate(item.date)} | {item.time}
+                      {formatDate(parseSlotDate(item.slotDate))} |{" "}
+                      {item.slotTime}
                     </p>
                     <p className="text-sm text-gray-500 mt-1">
                       Fee:{" "}
                       <span className="text-gray-700 font-medium">
                         {currency}
-                        {doc.fees}
+                        {item.amount ?? doc.fees}
                       </span>
                     </p>
                   </div>
@@ -199,14 +220,14 @@ const MyAppointments = () => {
                           </span>
                         ) : (
                           <button
-                            onClick={() => handlePay(item.id)}
+                            onClick={() => handlePay(item._id)}
                             className="bg-[#5F6FFF] text-white text-sm font-medium px-6 py-2.5 rounded-full hover:bg-[#4B5BE6] active:scale-95 transition-all duration-300"
                           >
                             Pay Online
                           </button>
                         )}
                         <button
-                          onClick={() => handleCancel(item.id)}
+                          onClick={() => handleCancel(item._id)}
                           className="border border-gray-300 text-gray-600 text-sm font-medium px-6 py-2.5 rounded-full hover:border-red-400 hover:text-red-500 active:scale-95 transition-all duration-300"
                         >
                           Cancel Appointment
@@ -217,7 +238,7 @@ const MyAppointments = () => {
                         src={assets.verified_icon}
                         alt=""
                         className={`w-6 h-6 self-center sm:self-end ${
-                          item.status === "cancelled" ? "opacity-30 grayscale" : ""
+                          status === "cancelled" ? "opacity-30 grayscale" : ""
                         }`}
                       />
                     )}
